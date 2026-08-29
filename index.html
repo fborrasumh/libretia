@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LibretIA · Cuaderno de investigación con IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+:root{
+  --bg:#f0f4f9; --panel:#fff; --ink:#1f1f1f; --muted:#5f6368; --line:#e3e8ef;
+  --accent:#0b57d0; --accent-soft:#d3e3fd; --chip:#e8f0fe; --hover:#f5f7fb;
+  --ok:#1e8e3e; --warn:#b3261e; --r-panel:18px; --r-card:14px;
+  --font:'Inter','Google Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.hidden{display:none !important}
+
+/* ---------- top bar ---------- */
+.topbar{height:60px;display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--bg);position:sticky;top:0;z-index:30}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:16px;letter-spacing:-.2px}
+.brand .dot{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#0b57d0,#7c4dff 60%,#00a3a3);flex:none}
+.nbtitle{font-weight:500;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
+.nbtitle b{color:var(--ink);font-weight:600}
+.spacer{flex:1}
+.iconbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.iconbtn:hover{background:#e4e9f2;color:var(--ink)}
+.pill{height:38px;padding:0 16px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-weight:500;display:inline-flex;align-items:center;gap:8px}
+.pill:hover{background:var(--hover)}
+.pill.primary{background:var(--accent);color:#fff;border-color:transparent}
+.pill.primary:hover{background:#0846ad}
+.pill.soft{background:var(--chip);border-color:transparent;color:#0b3d91}
+.pill:disabled{opacity:.5;cursor:not-allowed}
+.warnkey{color:var(--warn);font-size:12.5px;font-weight:500}
+
+/* ---------- home ---------- */
+.home{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+.home h1{font-size:34px;font-weight:600;letter-spacing:-.8px;margin:14px 0 4px}
+.home .sub{color:var(--muted);margin-bottom:28px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.nbcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card);padding:16px;min-height:150px;display:flex;flex-direction:column;text-align:left;transition:box-shadow .15s,transform .15s}
+.nbcard:hover{box-shadow:0 2px 10px rgba(20,40,80,.10);transform:translateY(-1px)}
+.nbcard .emoji{font-size:26px;margin-bottom:10px}
+.nbcard h3{margin:0 0 4px;font-size:15px;font-weight:600}
+.nbcard p{margin:0;color:var(--muted);font-size:12.5px;flex:1}
+.nbcard .meta{color:var(--muted);font-size:12px;margin-top:10px;display:flex;justify-content:space-between;align-items:center}
+.nbcard.new{border-style:dashed;align-items:center;justify-content:center;color:var(--accent);font-weight:600;gap:6px}
+
+/* ---------- workspace ---------- */
+.workspace{display:grid;grid-template-columns:300px 1fr 340px;gap:12px;padding:0 12px 12px;height:calc(100vh - 60px)}
+.panel{background:var(--panel);border-radius:var(--r-panel);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.phead{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;font-weight:600;font-size:15px}
+.phead .count{color:var(--muted);font-weight:500;font-size:12.5px}
+.pbody{flex:1;overflow-y:auto;padding:0 12px 14px}
+.pfoot{padding:10px 12px;border-top:1px solid var(--line)}
+
+/* sources */
+.srcactions{display:flex;gap:8px;padding:0 12px 10px}
+.srcactions .pill{flex:1;justify-content:center;height:34px;padding:0 10px;font-size:13px}
+.selectall{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;color:var(--muted);font-size:12.5px}
+.src{display:flex;gap:10px;align-items:flex-start;padding:9px 8px;border-radius:10px}
+.src:hover{background:var(--hover)}
+.src .ico{font-size:15px;line-height:1.4;flex:none}
+.src .txt{flex:1;min-width:0}
+.src .name{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src .sub{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);margin-top:3px;flex:none}
+.src .kill{opacity:0;color:var(--muted);font-size:15px;padding:0 3px}
+.src:hover .kill{opacity:1}
+.empty{color:var(--muted);text-align:center;padding:26px 14px;font-size:13px}
+.empty .big{font-size:26px;display:block;margin-bottom:8px}
+
+/* chat */
+.chatwrap{flex:1;overflow-y:auto;padding:6px 22px 10px;scroll-behavior:smooth}
+.msg{margin:16px 0;max-width:760px}
+.msg.user{margin-left:auto;background:var(--chip);padding:10px 16px;border-radius:18px 18px 4px 18px;width:fit-content;max-width:78%}
+.msg.ai .who{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:var(--muted);margin-bottom:6px}
+.msg.ai .who .dot{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,#0b57d0,#7c4dff 60%,#00a3a3)}
+.md h1,.md h2,.md h3{font-size:16px;font-weight:600;margin:16px 0 6px;letter-spacing:-.2px}
+.md h1{font-size:19px}
+.md p{margin:8px 0}
+.md ul,.md ol{margin:8px 0;padding-left:22px}
+.md li{margin:3px 0}
+.md code{background:#f1f3f4;padding:1px 5px;border-radius:5px;font-size:12.5px}
+.md pre{background:#f8f9fa;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto}
+.md pre code{background:none;padding:0}
+.md blockquote{border-left:3px solid var(--accent-soft);margin:8px 0;padding:2px 12px;color:var(--muted)}
+.md table{border-collapse:collapse;margin:10px 0;font-size:13px;width:100%}
+.md th,.md td{border:1px solid var(--line);padding:6px 9px;text-align:left}
+.md th{background:var(--hover)}
+.md a{color:var(--accent)}
+.cite{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;margin:0 1px;border-radius:5px;background:var(--chip);color:#0b3d91;font-size:11px;font-weight:600;vertical-align:2px}
+.cite:hover{background:var(--accent-soft)}
+.msgtools{display:flex;gap:6px;margin-top:10px;opacity:.65}
+.msg:hover .msgtools{opacity:1}
+.tinybtn{font-size:12px;color:var(--muted);padding:4px 10px;border-radius:999px;border:1px solid var(--line)}
+.tinybtn:hover{background:var(--hover);color:var(--ink)}
+.thinking{display:flex;gap:5px;align-items:center;color:var(--muted);font-size:13px}
+.thinking i{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;animation:bounce 1.2s infinite}
+.thinking i:nth-child(2){animation-delay:.15s}.thinking i:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+.suggests{display:flex;flex-wrap:wrap;gap:8px;padding:0 22px 8px}
+.suggests button{font-size:12.5px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);color:var(--muted);text-align:left}
+.suggests button:hover{background:var(--hover);color:var(--ink)}
+.composer{margin:0 14px 14px;border:1px solid var(--line);border-radius:22px;padding:8px 8px 8px 16px;display:flex;align-items:flex-end;gap:8px;background:var(--panel)}
+.composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.composer textarea{flex:1;border:none;outline:none;resize:none;max-height:140px;padding:7px 0;background:none}
+.composer .send{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none}
+.composer .send:disabled{background:#c4c9d4}
+.chatbar{display:flex;align-items:center;gap:10px;padding:0 22px 10px;color:var(--muted);font-size:12.5px}
+.switch{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.switch input{accent-color:var(--accent)}
+
+/* studio */
+.studiogrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 4px 10px}
+.tile{background:var(--hover);border:1px solid var(--line);border-radius:12px;padding:11px 10px;text-align:left;font-size:12.5px;font-weight:500;display:flex;flex-direction:column;gap:4px}
+.tile:hover{background:var(--chip);border-color:transparent}
+.tile .t-ico{font-size:16px}
+.audiocard{background:linear-gradient(135deg,#eef3fd,#e7f0fb);border:1px solid var(--line);border-radius:var(--r-card);padding:14px;margin:0 4px 12px}
+.audiocard h4{margin:0 0 3px;font-size:14px}
+.audiocard p{margin:0 0 10px;color:var(--muted);font-size:12.5px}
+.audiocard audio{width:100%;margin-top:10px}
+.note{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin:0 4px 8px;text-align:left;width:calc(100% - 8px);display:block}
+.note:hover{background:var(--hover)}
+.note h5{margin:0 0 3px;font-size:13px;font-weight:600;display:flex;gap:6px;align-items:center}
+.note p{margin:0;font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sechead{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:12px 6px 8px}
+
+/* modal / drawer */
+.scrim{position:fixed;inset:0;background:rgba(20,25,35,.45);display:grid;place-items:center;z-index:60;padding:16px}
+.modal{background:var(--panel);border-radius:20px;width:min(640px,100%);max-height:88vh;overflow:auto;padding:22px}
+.modal h2{margin:0 0 4px;font-size:20px;font-weight:600;letter-spacing:-.3px}
+.modal .lead{color:var(--muted);margin:0 0 16px;font-size:13px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;font-weight:600;margin-bottom:5px}
+.field input[type=text],.field input[type=password],.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;background:#fff}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:7px 14px;border-radius:999px;font-size:13px;color:var(--muted);border:1px solid var(--line)}
+.tab.on{background:var(--chip);color:#0b3d91;border-color:transparent;font-weight:600}
+.result{border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start}
+.result h6{margin:0 0 2px;font-size:13px;font-weight:600}
+.result p{margin:0;font-size:12px;color:var(--muted)}
+.result a{font-size:11.5px;color:var(--accent);word-break:break-all}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,92vw);background:var(--panel);z-index:70;box-shadow:-6px 0 28px rgba(15,25,50,.18);display:flex;flex-direction:column;animation:slide .18s ease}
+@keyframes slide{from{transform:translateX(24px);opacity:.4}}
+.drawer header{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.drawer header h3{margin:0;font-size:15px;font-weight:600;flex:1}
+.drawer .content{padding:16px 18px;overflow:auto;flex:1}
+.passage{background:var(--hover);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:12px 14px;font-size:13px;white-space:pre-wrap}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#202124;color:#fff;padding:11px 18px;border-radius:10px;z-index:90;font-size:13px;box-shadow:0 4px 18px rgba(0,0,0,.25);max-width:90vw}
+.progress{height:3px;background:var(--accent-soft);border-radius:3px;overflow:hidden;margin-top:8px}
+.progress i{display:block;height:100%;background:var(--accent);width:30%;animation:load 1.1s infinite}
+@keyframes load{0%{margin-left:-30%}100%{margin-left:100%}}
+.mobiletabs{display:none}
+@media (max-width:1080px){
+  .workspace{grid-template-columns:260px 1fr}
+  .panel.studio{display:none}
+  .panel.studio.show{display:flex;position:fixed;inset:60px 8px 8px;z-index:40;box-shadow:0 8px 40px rgba(15,25,50,.2)}
+}
+@media (max-width:760px){
+  .workspace{grid-template-columns:1fr;height:calc(100vh - 118px);padding:0 8px}
+  .panel{display:none}.panel.active{display:flex}
+  .panel.studio.show{position:static;inset:auto;box-shadow:none}
+  .nbtitle{max-width:40vw;font-size:13px}
+  .mobiletabs{display:flex;position:fixed;bottom:0;left:0;right:0;height:58px;background:var(--panel);border-top:1px solid var(--line);z-index:50}
+  .mobiletabs button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;color:var(--muted)}
+  .mobiletabs button.on{color:var(--accent);font-weight:600}
+  .chatwrap{padding:6px 12px}
+  .composer{margin:0 8px 8px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<div class="topbar">
+  <button class="brand" id="goHome" title="Todos los cuadernos"><span class="dot"></span>LibretIA</button>
+  <span class="nbtitle" id="nbTitle"></span>
+  <span class="spacer"></span>
+  <span id="keyWarn" class="warnkey hidden">Falta configurar claves</span>
+  <button class="iconbtn hidden" id="btnSearch" title="Buscar en el cuaderno">🔎</button>
+  <button class="iconbtn hidden" id="btnStudioToggle" title="Abrir Estudio">🎧</button>
+  <button class="iconbtn" id="btnSettings" title="Ajustes">⚙️</button>
+</div>
+
+<!-- ============ HOME ============ -->
+<div class="home" id="home">
+  <h1>Tus cuadernos</h1>
+  <p class="sub">Reúne fuentes, pregunta con citas verificables y genera material de estudio. Todo se guarda en este navegador.</p>
+  <div class="grid" id="nbGrid"></div>
+</div>
+
+<!-- ============ WORKSPACE ============ -->
+<div class="workspace hidden" id="workspace">
+
+  <!-- Fuentes -->
+  <section class="panel sources active" id="panelSources">
+    <div class="phead">Fuentes <span class="count" id="srcCount"></span></div>
+    <div class="srcactions">
+      <button class="pill" id="btnAddSource">＋ Añadir</button>
+      <button class="pill" id="btnDiscover">✦ Descubrir</button>
+    </div>
+    <div class="pbody">
+      <div class="selectall">
+        <label class="switch"><input type="checkbox" id="selAll" checked> Seleccionar todas</label>
+        <span id="selCount"></span>
+      </div>
+      <div id="srcList"></div>
+    </div>
+  </section>
+
+  <!-- Chat -->
+  <section class="panel chat" id="panelChat">
+    <div class="phead">Chat <span class="count" id="chatCtx"></span>
+      <span class="spacer"></span>
+      <button class="tinybtn" id="btnClearChat">Vaciar</button>
+    </div>
+    <div class="chatwrap" id="chatWrap"></div>
+    <div class="suggests" id="suggests"></div>
+    <div class="chatbar">
+      <label class="switch"><input type="checkbox" id="useWeb"> Complementar con búsqueda web (Tavily)</label>
+    </div>
+    <div class="composer">
+      <textarea id="composer" rows="1" placeholder="Pregunta a tus fuentes…"></textarea>
+      <button class="send" id="btnSend" title="Enviar">➤</button>
+    </div>
+  </section>
+
+  <!-- Estudio -->
+  <section class="panel studio" id="panelStudio">
+    <div class="phead">Estudio
+      <span class="spacer"></span>
+      <button class="tinybtn" id="btnExportNb">Exportar</button>
+    </div>
+    <div class="pbody">
+      <div class="audiocard">
+        <h4>Resumen en audio</h4>
+        <p>Dos voces conversan sobre tus fuentes seleccionadas.</p>
+        <button class="pill primary" id="btnPodcast">Generar</button>
+        <div id="podcastBox"></div>
+      </div>
+      <div class="sechead">Generar</div>
+      <div class="studiogrid" id="tiles"></div>
+      <div class="sechead">Notas <span id="noteCount"></span></div>
+      <button class="pill" id="btnNewNote" style="margin:0 4px 10px;width:calc(100% - 8px);justify-content:center">＋ Nota en blanco</button>
+      <div id="noteList"></div>
+    </div>
+  </section>
+</div>
+
+<div class="mobiletabs" id="mobileTabs">
+  <button data-p="sources" class="on"><span>📚</span>Fuentes</button>
+  <button data-p="chat"><span>💬</span>Chat</button>
+  <button data-p="studio"><span>🎧</span>Estudio</button>
+</div>
+
+<script>
+"use strict";
+/* =======================================================================
+   LibretIA — réplica navegable del skill "open-notebook" (K-Dense-AI)
+   OpenAI gpt-4o-mini + text-embedding-3-small + tts-1  |  Tavily search/extract
+   Todo en el navegador: IndexedDB + localStorage. Sin servidor.
+   ======================================================================= */
+
+const OPENAI = 'https://api.openai.com/v1';
+const MODEL = 'gpt-4o-mini';
+const EMB_MODEL = 'text-embedding-3-small';
+const TTS_MODEL = 'tts-1';
+const K_KEY = 'ia_openai_key', T_KEY = 'ia_tavily_key';
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ------------------------------ estado ------------------------------ */
+const S = { nb:null, list:[], busy:false, panel:'sources' };
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = t => String(t??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const keyOA = () => localStorage.getItem(K_KEY) || '';
+const keyTV = () => localStorage.getItem(T_KEY) || '';
+
+function toast(msg, ms=3200){
+  $$('.toast').forEach(t=>t.remove());
+  const d = document.createElement('div'); d.className='toast'; d.textContent = msg;
+  document.body.appendChild(d); setTimeout(()=>d.remove(), ms);
+}
+
+/* --------------------------- IndexedDB ------------------------------ */
+let DB;
+function db(){
+  return new Promise((res, rej) => {
+    if (DB) return res(DB);
+    const r = indexedDB.open('libretia', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('notebooks', {keyPath:'id'});
+    r.onsuccess = () => { DB = r.result; res(DB); };
+    r.onerror = () => rej(r.error);
+  });
+}
+async function dbAll(){
+  const d = await db();
+  return new Promise((res, rej) => {
+    const q = d.transaction('notebooks').objectStore('notebooks').getAll();
+    q.onsuccess = () => res(q.result.sort((a,b)=>b.updated-a.updated));
+    q.onerror = () => rej(q.error);
+  });
+}
+async function dbPut(nb){
+  const d = await db();
+  return new Promise((res, rej) => {
+    const tx = d.transaction('notebooks','readwrite');
+    tx.objectStore('notebooks').put(nb);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+async function dbDel(id){
+  const d = await db();
+  return new Promise(res => {
+    const tx = d.transaction('notebooks','readwrite');
+    tx.objectStore('notebooks').delete(id);
+    tx.oncomplete = res;
+  });
+}
+let saveT;
+function save(){
+  if (!S.nb) return;
+  S.nb.updated = Date.now();
+  clearTimeout(saveT);
+  saveT = setTimeout(() => dbPut(S.nb).catch(e => toast('No se pudo guardar: ' + e.message)), 250);
+}
+
+/* ------------------------- llamadas a la API ------------------------ */
+async function oa(path, body, signal){
+  const k = keyOA();
+  if (!k) throw new Error('Añade tu clave de OpenAI en Ajustes.');
+  const r = await fetch(OPENAI + path, {
+    method:'POST', signal,
+    headers:{'Content-Type':'application/json','Authorization':'Bearer ' + k},
+    body: JSON.stringify(body)
+  });
+  if (!r.ok){
+    let m = await r.text();
+    try { m = JSON.parse(m).error.message; } catch(e){}
+    throw new Error('OpenAI: ' + m);
+  }
+  return r;
+}
+async function llm(messages, {json=false, temperature=0.3, max_tokens=2200}={}){
+  const body = {model:MODEL, messages, temperature, max_tokens};
+  if (json) body.response_format = {type:'json_object'};
+  const r = await oa('/chat/completions', body);
+  const d = await r.json();
+  return d.choices[0].message.content.trim();
+}
+async function embed(texts){
+  const out = [];
+  for (let i = 0; i < texts.length; i += 64){
+    const r = await oa('/embeddings', {model:EMB_MODEL, input: texts.slice(i, i+64)});
+    const d = await r.json();
+    d.data.forEach(x => out.push(norm(Float32Array.from(x.embedding))));
+  }
+  return out;
+}
+function norm(v){ let s=0; for (const x of v) s += x*x; s = Math.sqrt(s)||1; for (let i=0;i<v.length;i++) v[i] /= s; return v; }
+function cos(a, b){ let s=0; for (let i=0;i<a.length;i++) s += a[i]*b[i]; return s; }
+
+async function tavily(path, body){
+  const k = keyTV();
+  if (!k) throw new Error('Añade tu clave de Tavily en Ajustes para leer enlaces y buscar en la web.');
+  let r;
+  try{
+    r = await fetch('https://api.tavily.com/' + path, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer ' + k},
+      body: JSON.stringify({api_key:k, ...body})
+    });
+  }catch(e){
+    throw new Error('No se pudo contactar con Tavily. Revisa tu conexión o abre la app desde http(s), no desde file://');
+  }
+  if (r.status === 401) throw new Error('Tavily rechaza la clave. Revísala en Ajustes.');
+  if (r.status === 429) throw new Error('Has agotado el crédito de Tavily por ahora.');
+  if (!r.ok) throw new Error('Tavily (' + r.status + '): ' + (await r.text()).slice(0,180));
+  return r.json();
+}
+const tvSearch  = (query, n=6) => tavily('search', {query, max_results:n, search_depth:'advanced', include_raw_content:true});
+const tvExtract = urls => tavily('extract', {urls, extract_depth:'advanced', format:'markdown'});
+
+/* --------------------------- markdown ------------------------------- */
+function md(src){
+  let t = esc(src).replace(/\r/g,'');
+  const code = [];
+  t = t.replace(/```(?:\w*)\n([\s\S]*?)```/g, (m,c) => { code.push(c); return '\u0000' + (code.length-1) + '\u0000'; });
+  t = t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+       .replace(/(^|[\s(])\*(?!\s)([^*\n]+?)\*/g,'$1<em>$2</em>')
+       .replace(/`([^`\n]+)`/g,'<code>$1</code>')
+       .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+  const out = [];
+  let para = [], quote = [], tbl = [], stack = [], lbuf = '';
+  const flushPara = () => { if (para.length){ out.push('<p>' + para.join('<br>') + '</p>'); para = []; } };
+  const flushQuote = () => { if (quote.length){ out.push('<blockquote>' + quote.join('<br>') + '</blockquote>'); quote = []; } };
+  const flushList = () => {
+    while (stack.length) lbuf += '</li></' + stack.pop() + '>';
+    if (lbuf){ out.push(lbuf); lbuf = ''; }
+  };
+  const flushTable = () => {
+    if (!tbl.length) return;
+    const cells = r => r.replace(/^\||\|$/g,'').split('|').map(c => c.trim());
+    if (tbl.length > 1 && /^\|?[\s:|-]+\|[\s:|-]*$/.test(tbl[1])){
+      const head = cells(tbl[0]).map(c => '<th>' + c + '</th>').join('');
+      const rows = tbl.slice(2).map(r => '<tr>' + cells(r).map(c => '<td>' + c + '</td>').join('') + '</tr>').join('');
+      out.push(`<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`);
+    } else out.push('<p>' + tbl.join('<br>') + '</p>');
+    tbl = [];
+  };
+  const flushAll = () => { flushPara(); flushQuote(); flushList(); flushTable(); };
+  const pushLi = (indent, tag, text) => {
+    if (!stack.length){ lbuf += '<' + tag + '>'; stack.push(tag); }
+    else if (indent + 1 > stack.length){ while (stack.length < indent + 1){ lbuf += '<' + tag + '>'; stack.push(tag); } }
+    else {
+      while (stack.length > indent + 1) lbuf += '</li></' + stack.pop() + '>';
+      lbuf += '</li>';
+    }
+    lbuf += '<li>' + text;
+  };
+
+  for (const raw of t.split('\n')){
+    const line = raw.trim();
+    let m;
+    if (!line){ flushAll(); continue; }
+    if (/^\u0000\d+\u0000$/.test(line)){ flushAll(); out.push(line); continue; }
+    if (m = line.match(/^(#{1,6})\s+(.*)$/)){ flushAll(); const n = Math.min(m[1].length, 3); out.push(`<h${n}>${m[2]}</h${n}>`); continue; }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)){ flushAll(); out.push('<hr>'); continue; }
+    if (m = line.match(/^&gt;\s?(.*)$/)){ flushPara(); flushList(); flushTable(); quote.push(m[1]); continue; }
+    if (m = raw.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/)){
+      flushPara(); flushQuote(); flushTable();
+      pushLi(Math.min(3, Math.floor(m[1].replace(/\t/g,'  ').length / 2)), /^\d/.test(m[2]) ? 'ol' : 'ul', m[3]);
+      continue;
+    }
+    if (/^\|.*\|?$/.test(line) && line.includes('|')){ flushPara(); flushQuote(); flushList(); tbl.push(line); continue; }
+    flushQuote(); flushList(); flushTable();
+    para.push(line);
+  }
+  flushAll();
+  return out.join('\n').replace(/\u0000(\d+)\u0000/g, (m,i) => '<pre><code>' + code[i] + '</code></pre>');
+}
+const citeChips = html => html.replace(/\[(\d{1,2})\]/g, '<button class="cite" data-cite="$1">$1</button>');
+
+/* ---------------------------- fuentes -------------------------------- */
+function chunk(text, size=1300, overlap=180){
+  const clean = text.replace(/\r/g,'').replace(/\n{3,}/g,'\n\n').trim();
+  const out = [];
+  for (let i = 0; i < clean.length; i += (size - overlap)){
+    const piece = clean.slice(i, i + size).trim();
+    if (piece.length > 60) out.push(piece);
+    if (i + size >= clean.length) break;
+  }
+  return out.length ? out : [clean];
+}
+async function addSource({title, content, type, url}){
+  if (!content || content.trim().length < 40) { toast('Esa fuente no tiene texto legible.'); return null; }
+  const s = {id:uid(), title:title||'Fuente', type, url:url||'', content, on:true, status:'processing', chunks:[], added:Date.now()};
+  S.nb.sources.push(s); renderSources(); save();
+  try{
+    const parts = chunk(content);
+    const vecs = await embed(parts);
+    s.chunks = parts.map((text,i) => ({i, text, emb: vecs[i]}));
+    s.status = 'ready';
+  }catch(e){
+    s.status = 'error'; s.error = e.message; toast(e.message);
+  }
+  renderSources(); save();
+  return s;
+}
+const selected = () => S.nb ? S.nb.sources.filter(s => s.on && s.status === 'ready') : [];
+
+function srcIcon(t){ return {url:'🌐', web:'🌐', file:'📄', pdf:'📕', text:'📝'}[t] || '📄'; }
+
+function renderSources(){
+  const list = $('#srcList'), src = S.nb.sources;
+  $('#srcCount').textContent = src.length ? `· ${src.length}` : '';
+  $('#selCount').textContent = `${src.filter(s=>s.on).length}/${src.length}`;
+  $('#chatCtx').textContent = selected().length ? `· ${selected().length} fuentes en contexto` : '· sin fuentes';
+  if (!src.length){
+    list.innerHTML = `<div class="empty"><span class="big">📚</span>Añade PDFs, textos, páginas web o deja que Tavily descubra fuentes por ti.</div>`;
+    return;
+  }
+  list.innerHTML = src.map(s => `
+    <div class="src" data-id="${s.id}">
+      <input type="checkbox" ${s.on?'checked':''} data-check="${s.id}" ${s.status!=='ready'?'disabled':''}>
+      <span class="ico">${srcIcon(s.type)}</span>
+      <span class="txt">
+        <span class="name" title="${esc(s.title)}">${esc(s.title)}</span>
+        <span class="sub">${s.status==='processing' ? 'Procesando…' : s.status==='error' ? 'Error: ' + esc(s.error||'') : (s.chunks.length + ' fragmentos · ' + Math.round(s.content.length/1000) + 'k car.')}</span>
+      </span>
+      <button class="kill" data-kill="${s.id}" title="Quitar">✕</button>
+    </div>`).join('');
+}
+
+/* ----------------------------- chat --------------------------------- */
+function renderChat(){
+  const w = $('#chatWrap');
+  if (!S.nb.chat.length){
+    w.innerHTML = `<div class="empty" style="padding-top:60px"><span class="big">💬</span>
+      Pregunta lo que quieras. Cada respuesta cita las fuentes que ha usado.</div>`;
+  } else {
+    w.innerHTML = S.nb.chat.map((m, i) => m.role === 'user'
+      ? `<div class="msg user">${esc(m.content)}</div>`
+      : `<div class="msg ai" data-i="${i}">
+           <div class="who"><span class="dot"></span>LibretIA</div>
+           <div class="md">${citeChips(md(m.content))}</div>
+           <div class="msgtools">
+             <button class="tinybtn" data-note="${i}">Guardar como nota</button>
+             <button class="tinybtn" data-copy="${i}">Copiar</button>
+             ${m.cites?.length ? `<span class="tinybtn" style="border:none">${m.cites.length} citas</span>` : ''}
+           </div>
+         </div>`).join('');
+  }
+  w.scrollTop = w.scrollHeight;
+}
+function buildContext(hits){
+  return hits.map((h,i) => `[${i+1}] ${h.title}${h.url ? ' — ' + h.url : ''}\n"""${h.text}"""`).join('\n\n');
+}
+async function retrieve(q, k=10){
+  const srcs = selected();
+  if (!srcs.length) return [];
+  const [qv] = await embed([q]);
+  const all = [];
+  srcs.forEach(s => s.chunks.forEach(c => all.push({score: cos(qv, c.emb), title:s.title, url:s.url, text:c.text, sourceId:s.id})));
+  const words = q.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+  all.forEach(h => { const lt = h.text.toLowerCase(); h.score += words.filter(w => lt.includes(w)).length * 0.012; });
+  return all.sort((a,b) => b.score - a.score).slice(0, k);
+}
+async function ask(q){
+  if (S.busy) return;
+  if (!selected().length && !$('#useWeb').checked){ toast('Selecciona al menos una fuente o activa la búsqueda web.'); return; }
+  S.busy = true; $('#btnSend').disabled = true;
+  S.nb.chat.push({role:'user', content:q}); renderChat(); $('#suggests').innerHTML='';
+  const w = $('#chatWrap');
+  const ph = document.createElement('div');
+  ph.className = 'msg ai'; ph.innerHTML = `<div class="who"><span class="dot"></span>LibretIA</div><div class="thinking">Consultando tus fuentes<i></i><i></i><i></i></div>`;
+  w.appendChild(ph); w.scrollTop = w.scrollHeight;
+  try{
+    let hits = await retrieve(q, 10);
+    if ($('#useWeb').checked){
+      ph.querySelector('.thinking').firstChild.textContent = 'Buscando en la web';
+      const r = await tvSearch(q, 5);
+      (r.results||[]).forEach(x => hits.push({title:'[web] ' + x.title, url:x.url, text:(x.raw_content||x.content||'').slice(0,2500), web:true, score:0}));
+    }
+    if (!hits.length) throw new Error('No hay contenido indexado todavía.');
+    const sys = `Eres un asistente de investigación que responde EXCLUSIVAMENTE con la información de los extractos numerados que recibes.
+Reglas:
+- Cita siempre con marcadores [n] justo detrás de cada afirmación que provenga de un extracto.
+- Si los extractos no contienen la respuesta, dilo con claridad y no inventes.
+- Responde en español, en Markdown, con estructura clara y sin relleno.
+- No cites extractos que no hayas usado.`;
+    const user = `Extractos disponibles:\n\n${buildContext(hits)}\n\nPregunta: ${q}`;
+    const hist = S.nb.chat.slice(-7, -1).map(m => ({role:m.role, content:m.content.slice(0,1200)}));
+    const ans = await llm([{role:'system',content:sys}, ...hist, {role:'user',content:user}], {max_tokens:1800});
+    ph.remove();
+    S.nb.chat.push({role:'assistant', content:ans, cites:hits.map((h,i)=>({n:i+1, title:h.title, url:h.url, text:h.text}))});
+    renderChat(); save();
+  }catch(e){
+    ph.remove(); toast(e.message);
+    S.nb.chat.push({role:'assistant', content:'⚠️ ' + e.message}); renderChat();
+  }finally{ S.busy=false; $('#btnSend').disabled=false; }
+}
+async function suggestQuestions(){
+  if (!selected().length) return;
+  try{
+    const sample = selected().slice(0,4).map(s => s.title + ': ' + s.content.slice(0,1500)).join('\n\n');
+    const out = await llm([{role:'user', content:`A partir de estas fuentes, propón 3 preguntas cortas y concretas que un investigador querría hacerles. Devuelve JSON {"q":["...","...","..."]}.\n\n${sample}`}], {json:true, max_tokens:300});
+    const qs = JSON.parse(out).q || [];
+    $('#suggests').innerHTML = qs.map(q => `<button data-q="${esc(q)}">${esc(q)}</button>`).join('');
+  }catch(e){ /* silencioso */ }
+}
+
+/* ------------------------ notas y transformaciones ------------------- */
+const TRANSFORMS = [
+  {id:'summary',  ico:'📄', name:'Resumen ejecutivo', prompt:'Redacta un resumen ejecutivo con: objeto, hallazgos principales, metodología si aparece, y limitaciones. Máx. 500 palabras.'},
+  {id:'study',    ico:'🎓', name:'Guía de estudio',   prompt:'Crea una guía de estudio: conceptos clave con definición, 10 preguntas cortas con respuesta, y un glosario.'},
+  {id:'faq',      ico:'❓', name:'Preguntas frecuentes', prompt:'Genera 8 preguntas frecuentes con sus respuestas, basadas solo en las fuentes.'},
+  {id:'timeline', ico:'🗓️', name:'Cronología',        prompt:'Construye una cronología en tabla (fecha | hecho | fuente) con todos los hitos temporales que aparezcan.'},
+  {id:'brief',    ico:'📋', name:'Documento informativo', prompt:'Escribe un briefing para alguien que no ha leído nada: contexto, qué se sabe, qué está en disputa, qué falta por investigar.'},
+  {id:'mindmap',  ico:'🗺️', name:'Mapa conceptual',   prompt:'Devuelve un mapa conceptual como lista jerárquica en Markdown (máx. 4 niveles) que organice las ideas y sus relaciones.'},
+  {id:'methods',  ico:'🔬', name:'Métodos',           prompt:'Extrae y sintetiza la metodología: diseño, muestra, variables, análisis estadístico e instrumentos.'},
+  {id:'custom',   ico:'✨', name:'Instrucción propia', prompt:''}
+];
+function corpus(limit=60000){
+  const s = selected();
+  if (!s.length) return null;
+  let out = '', per = Math.floor(limit / s.length);
+  s.forEach((x,i) => { out += `\n\n### FUENTE ${i+1}: ${x.title}${x.url ? ' ('+x.url+')' : ''}\n` + x.content.slice(0, per); });
+  return out.trim();
+}
+async function runTransform(t){
+  const body = corpus();
+  if (!body) { toast('Selecciona al menos una fuente.'); return; }
+  let instruction = t.prompt;
+  if (t.id === 'custom'){
+    instruction = prompt('¿Qué quieres que haga con las fuentes seleccionadas?', 'Extrae todos los datos numéricos en una tabla.');
+    if (!instruction) return;
+  }
+  const note = {id:uid(), title:t.name, body:'', ts:Date.now(), kind:'ai', pending:true};
+  S.nb.notes.unshift(note); renderNotes();
+  try{
+    const out = await llm([
+      {role:'system', content:'Trabajas solo con el material proporcionado. Responde en español, en Markdown, citando la fuente entre corchetes como [1], [2] cuando corresponda al número de FUENTE.'},
+      {role:'user', content:`${instruction}\n\nMATERIAL:\n${body}`}
+    ], {max_tokens:2600});
+    note.body = out; note.pending = false;
+    if (t.id === 'custom') note.title = instruction.slice(0,44);
+    renderNotes(); save(); toast('Nota creada: ' + note.title);
+  }catch(e){
+    S.nb.notes = S.nb.notes.filter(n => n.id !== note.id); renderNotes(); toast(e.message);
+  }
+}
+function renderNotes(){
+  const l = $('#noteList'), n = S.nb.notes;
+  $('#noteCount').textContent = n.length ? `· ${n.length}` : '';
+  l.innerHTML = n.length ? n.map(x => `
+    <button class="note" data-note-open="${x.id}">
+      <h5>${x.kind==='ai'?'✨':'📝'} ${esc(x.title)}</h5>
+      <p>${x.pending ? 'Generando…' : esc(x.body.replace(/[#*`>|-]/g,'').slice(0,150))}</p>
+    </button>`).join('')
+    : `<div class="empty" style="padding:14px">Aún no hay notas. Genera material arriba o guarda una respuesta del chat.</div>`;
+}
+function renderTiles(){
+  $('#tiles').innerHTML = TRANSFORMS.map(t =>
+    `<button class="tile" data-t="${t.id}"><span class="t-ico">${t.ico}</span>${t.name}</button>`).join('');
+}
+
+/* --------------------------- audio (podcast) ------------------------- */
+async function makePodcast(){
+  const body = corpus(28000);
+  if (!body) { toast('Selecciona al menos una fuente.'); return; }
+  const box = $('#podcastBox');
+  box.innerHTML = `<div class="progress"><i></i></div><p style="font-size:12px;color:var(--muted);margin:6px 0 0" id="podStat">Escribiendo el guion…</p>`;
+  const stat = m => { const e = $('#podStat'); if (e) e.textContent = m; };
+  try{
+    const raw = await llm([
+      {role:'system', content:'Escribes guiones de pódcast divulgativo en español de España. Devuelve JSON {"title":"...","turns":[{"speaker":"A"|"B","text":"..."}]}. A es la anfitriona que pregunta y conduce; B es el experto que explica. Entre 12 y 16 turnos, cada uno de 2-4 frases, lenguaje natural y hablado, sin markdown ni acotaciones escénicas. Fiel al material, sin inventar datos.'},
+      {role:'user', content:`Crea un resumen en audio de este material:\n\n${body}`}
+    ], {json:true, temperature:0.6, max_tokens:2600});
+    const script = JSON.parse(raw);
+    stat(`Sintetizando ${script.turns.length} intervenciones…`);
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const bufs = [];
+    for (let i = 0; i < script.turns.length; i++){
+      const t = script.turns[i];
+      stat(`Sintetizando voz ${i+1}/${script.turns.length}…`);
+      const r = await oa('/audio/speech', {model:TTS_MODEL, voice: t.speaker === 'A' ? 'nova' : 'onyx', input: t.text.slice(0,4000), speed:1.02});
+      bufs.push(await ctx.decodeAudioData(await r.arrayBuffer()));
+    }
+    stat('Montando el audio…');
+    const blob = wav(bufs, ctx.sampleRate);
+    S.nb.audio = {title: script.title || 'Resumen en audio', script: script.turns, blob, ts: Date.now()};
+    save(); renderPodcast();
+  }catch(e){ box.innerHTML = ''; toast(e.message); }
+}
+function wav(buffers, rate){
+  const len = buffers.reduce((n,b) => n + b.length, 0);
+  const data = new Float32Array(len);
+  let o = 0;
+  buffers.forEach(b => { data.set(b.getChannelData(0), o); o += b.length; });
+  const ab = new ArrayBuffer(44 + data.length*2), v = new DataView(ab);
+  const str = (p,s) => { for (let i=0;i<s.length;i++) v.setUint8(p+i, s.charCodeAt(i)); };
+  str(0,'RIFF'); v.setUint32(4, 36 + data.length*2, true); str(8,'WAVEfmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  str(36,'data'); v.setUint32(40, data.length*2, true);
+  let p = 44;
+  for (let i=0;i<data.length;i++,p+=2){ const s = Math.max(-1, Math.min(1, data[i])); v.setInt16(p, s<0 ? s*0x8000 : s*0x7fff, true); }
+  return new Blob([ab], {type:'audio/wav'});
+}
+function renderPodcast(){
+  const box = $('#podcastBox'), a = S.nb.audio;
+  if (!a){ box.innerHTML = ''; return; }
+  const url = URL.createObjectURL(a.blob);
+  box.innerHTML = `<audio controls src="${url}"></audio>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <a class="tinybtn" href="${url}" download="${esc(a.title).replace(/[^\w\s-]/g,'')}.wav" style="text-decoration:none">Descargar</a>
+      <button class="tinybtn" id="btnScript">Ver guion</button>
+      <button class="tinybtn" id="btnDropAudio">Borrar</button>
+    </div>`;
+  $('#btnScript').onclick = () => drawer(a.title, `<div class="md">${a.script.map(t => `<p><strong>${t.speaker==='A'?'Anfitriona':'Experto'}:</strong> ${esc(t.text)}</p>`).join('')}</div>`);
+  $('#btnDropAudio').onclick = () => { S.nb.audio = null; save(); renderPodcast(); };
+}
+
+/* ------------------------------ UI: drawer/modal --------------------- */
+function drawer(title, html, actions=''){
+  closeLayers();
+  const d = document.createElement('div');
+  d.className = 'drawer';
+  d.innerHTML = `<header><h3>${esc(title)}</h3>${actions}<button class="iconbtn" data-x>✕</button></header><div class="content">${html}</div>`;
+  document.body.appendChild(d);
+  d.querySelector('[data-x]').onclick = closeLayers;
+  return d;
+}
+function modal(html){
+  closeLayers();
+  const s = document.createElement('div');
+  s.className = 'scrim';
+  s.innerHTML = `<div class="modal">${html}</div>`;
+  s.addEventListener('click', e => { if (e.target === s) closeLayers(); });
+  document.body.appendChild(s);
+  return s;
+}
+function closeLayers(){ $$('.scrim,.drawer').forEach(e => e.remove()); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLayers(); });
+
+/* ------------------------------ pantallas ---------------------------- */
+async function renderHome(){
+  S.list = await dbAll();
+  S.nb = null;
+  $('#home').classList.remove('hidden'); $('#workspace').classList.add('hidden');
+  $('#nbTitle').textContent = '';
+  $('#btnSearch').classList.add('hidden'); $('#btnStudioToggle').classList.add('hidden');
+  $('#nbGrid').innerHTML = `<button class="nbcard new" id="newNb"><span style="font-size:26px">＋</span>Crear cuaderno</button>` +
+    S.list.map(n => `
+      <div class="nbcard" data-open="${n.id}" role="button" tabindex="0">
+        <span class="emoji">${n.emoji || '📓'}</span>
+        <h3>${esc(n.name)}</h3>
+        <p>${esc(n.desc || 'Sin descripción')}</p>
+        <div class="meta"><span>${n.sources.length} fuentes · ${n.notes.length} notas</span>
+        <button class="kill" data-del="${n.id}" title="Eliminar" style="opacity:.6">🗑</button></div>
+      </div>`).join('');
+  document.querySelector('.mobiletabs').style.display = window.innerWidth <= 760 ? 'none' : '';
+}
+function openNb(nb){
+  S.nb = nb;
+  $('#home').classList.add('hidden'); $('#workspace').classList.remove('hidden');
+  $('#nbTitle').innerHTML = `<b>${esc(nb.name)}</b>`;
+  $('#btnSearch').classList.remove('hidden'); $('#btnStudioToggle').classList.remove('hidden');
+  document.querySelector('.mobiletabs').style.display = '';
+  renderSources(); renderChat(); renderTiles(); renderNotes(); renderPodcast();
+  if (!nb.chat.length && selected().length) suggestQuestions();
+}
+function newNotebook(){
+  const s = modal(`<h2>Nuevo cuaderno</h2><p class="lead">Un cuaderno agrupa fuentes, chat y notas sobre un mismo tema.</p>
+    <div class="field"><label>Nombre</label><input type="text" id="nbName" placeholder="Revisión sobre eficiencia DEA en hospitales"></div>
+    <div class="field"><label>Descripción (opcional)</label><input type="text" id="nbDesc" placeholder="Objetivo y alcance"></div>
+    <div class="actions"><button class="pill" data-close>Cancelar</button><button class="pill primary" id="nbGo">Crear</button></div>`);
+  const nameEl = s.querySelector('#nbName'); nameEl.focus();
+  s.querySelector('[data-close]').onclick = closeLayers;
+  const go = async () => {
+    const name = nameEl.value.trim() || 'Cuaderno sin título';
+    const nb = {id:uid(), name, desc: s.querySelector('#nbDesc').value.trim(), emoji:'📓',
+                sources:[], notes:[], chat:[], audio:null, created:Date.now(), updated:Date.now()};
+    await dbPut(nb); closeLayers(); openNb(nb);
+  };
+  s.querySelector('#nbGo').onclick = go;
+  nameEl.onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+
+/* --------------------------- añadir fuentes -------------------------- */
+function addSourceDialog(){
+  const s = modal(`<h2>Añadir fuentes</h2><p class="lead">LibretIA fragmenta e indexa cada fuente para poder citarla después.</p>
+    <div class="tabs"><button class="tab on" data-tab="file">Archivo</button><button class="tab" data-tab="url">Enlace</button><button class="tab" data-tab="text">Texto pegado</button></div>
+    <div id="tabFile">
+      <div class="field"><label>PDF, DOCX, TXT o Markdown</label><input type="file" id="fileIn" multiple accept=".pdf,.docx,.txt,.md,.csv">
+      <div class="hint">Los archivos no salen de tu navegador salvo el texto que se envía a OpenAI para indexarlo.</div></div>
+    </div>
+    <div id="tabUrl" class="hidden">
+      <div class="field"><label>URL (una por línea)</label><textarea id="urlIn" rows="4" placeholder="https://doi.org/…&#10;https://…"></textarea>
+      <div class="hint">Se extrae el texto con Tavily Extract.</div></div>
+    </div>
+    <div id="tabText" class="hidden">
+      <div class="field"><label>Título</label><input type="text" id="txtTitle" placeholder="Notas de la reunión"></div>
+      <div class="field"><label>Contenido</label><textarea id="txtIn" rows="7" placeholder="Pega aquí el texto…"></textarea></div>
+    </div>
+    <div class="actions"><button class="pill" data-close>Cancelar</button><button class="pill primary" id="addGo">Añadir</button></div>`);
+  let tab = 'file';
+  s.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+    tab = b.dataset.tab;
+    s.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+    ['file','url','text'].forEach(t => s.querySelector('#tab' + t[0].toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tab));
+  });
+  s.querySelector('[data-close]').onclick = closeLayers;
+  s.querySelector('#addGo').onclick = async () => {
+    const btn = s.querySelector('#addGo'); btn.disabled = true; btn.textContent = 'Procesando…';
+    try{
+      if (tab === 'file'){
+        const files = [...s.querySelector('#fileIn').files];
+        if (!files.length) throw new Error('Elige al menos un archivo.');
+        closeLayers();
+        for (const f of files){
+          toast('Leyendo ' + f.name + '…');
+          const text = await readFile(f);
+          await addSource({title:f.name, content:text, type: f.name.endsWith('.pdf') ? 'pdf' : 'file'});
+        }
+      } else if (tab === 'url'){
+        const urls = s.querySelector('#urlIn').value.split('\n').map(u => u.trim()).filter(Boolean);
+        if (!urls.length) throw new Error('Escribe al menos una URL.');
+        closeLayers(); toast('Extrayendo contenido…');
+        const r = await tvExtract(urls);
+        for (const x of (r.results || [])){
+          const title = (x.raw_content || '').split('\n').find(l => l.trim().length > 12)?.slice(0,80) || x.url;
+          await addSource({title, content:x.raw_content, type:'url', url:x.url});
+        }
+        (r.failed_results || []).forEach(f => toast('No se pudo leer: ' + (f.url || '')));
+      } else {
+        const content = s.querySelector('#txtIn').value;
+        closeLayers();
+        await addSource({title: s.querySelector('#txtTitle').value.trim() || 'Texto pegado', content, type:'text'});
+      }
+      toast('Fuentes indexadas.');
+      if (S.nb.chat.length === 0) suggestQuestions();
+    }catch(e){ toast(e.message); closeLayers(); }
+  };
+}
+async function readFile(f){
+  if (/\.pdf$/i.test(f.name)){
+    const pdf = await pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+    let out = '';
+    for (let p = 1; p <= pdf.numPages; p++){
+      const c = await (await pdf.getPage(p)).getTextContent();
+      out += c.items.map(i => i.str).join(' ') + '\n\n';
+    }
+    return out;
+  }
+  if (/\.docx$/i.test(f.name)) return (await mammoth.extractRawText({arrayBuffer: await f.arrayBuffer()})).value;
+  return f.text();
+}
+function discoverDialog(){
+  const s = modal(`<h2>Descubrir fuentes</h2><p class="lead">Tavily busca en la web y tú eliges qué se incorpora al cuaderno.</p>
+    <div class="field"><input type="text" id="dq" placeholder="Ej.: eficiencia técnica hospitales DEA bootstrap"></div>
+    <div class="actions" style="margin:0 0 14px"><button class="pill primary" id="dgo">Buscar</button></div>
+    <div id="dres"></div>`);
+  const q = s.querySelector('#dq'); q.focus();
+  const run = async () => {
+    if (!q.value.trim()) return;
+    const res = s.querySelector('#dres');
+    res.innerHTML = `<div class="progress"><i></i></div>`;
+    try{
+      const r = await tvSearch(q.value.trim(), 8);
+      const items = r.results || [];
+      if (!items.length){ res.innerHTML = '<p class="lead">Sin resultados. Prueba otras palabras.</p>'; return; }
+      res.innerHTML = items.map((x,i) => `
+        <label class="result"><input type="checkbox" data-r="${i}" checked style="margin-top:3px;accent-color:var(--accent)">
+          <span><h6>${esc(x.title)}</h6><p>${esc((x.content||'').slice(0,180))}…</p><a>${esc(x.url)}</a></span></label>`).join('')
+        + `<div class="actions"><button class="pill" data-close2>Cancelar</button><button class="pill primary" id="dadd">Añadir seleccionadas</button></div>`;
+      res.querySelector('[data-close2]').onclick = closeLayers;
+      res.querySelector('#dadd').onclick = async () => {
+        const picks = [...res.querySelectorAll('[data-r]:checked')].map(c => items[+c.dataset.r]);
+        closeLayers(); toast('Añadiendo ' + picks.length + ' fuentes…');
+        for (const p of picks){
+          let text = p.raw_content || p.content || '';
+          if (text.length < 900){
+            try { const e2 = await tvExtract([p.url]); text = e2.results?.[0]?.raw_content || text; } catch(err){}
+          }
+          await addSource({title:p.title, content:text, type:'web', url:p.url});
+        }
+        toast('Listo.'); if (S.nb.chat.length === 0) suggestQuestions();
+      };
+    }catch(e){ res.innerHTML = `<p class="lead">${esc(e.message)}</p>`; }
+  };
+  s.querySelector('#dgo').onclick = run;
+  q.onkeydown = e => { if (e.key === 'Enter') run(); };
+}
+
+/* ------------------------------ buscador ----------------------------- */
+function searchDialog(){
+  const s = modal(`<h2>Buscar en el cuaderno</h2><p class="lead">Búsqueda semántica sobre los fragmentos indexados.</p>
+    <div class="field"><input type="text" id="sq" placeholder="¿Qué buscas?"></div>
+    <div id="sres"></div>`);
+  const q = s.querySelector('#sq'); q.focus();
+  q.onkeydown = async e => {
+    if (e.key !== 'Enter' || !q.value.trim()) return;
+    const box = s.querySelector('#sres'); box.innerHTML = `<div class="progress"><i></i></div>`;
+    try{
+      const hits = await retrieve(q.value.trim(), 8);
+      box.innerHTML = hits.length ? hits.map(h => `
+        <div class="result"><span><h6>${esc(h.title)} · ${(h.score*100).toFixed(0)}%</h6>
+        <p>${esc(h.text.slice(0,260))}…</p></span></div>`).join('')
+        : '<p class="lead">Sin coincidencias.</p>';
+    }catch(err){ box.innerHTML = `<p class="lead">${esc(err.message)}</p>`; }
+  };
+}
+
+/* ------------------------------ ajustes ------------------------------ */
+function settingsDialog(){
+  const s = modal(`<h2>Ajustes</h2><p class="lead">Las claves se guardan solo en este navegador (localStorage) y viajan directamente a cada proveedor.</p>
+    <div class="field"><label>Clave de OpenAI</label><input type="password" id="kOA" value="${esc(keyOA())}" placeholder="sk-…">
+      <div class="hint">Modelos: ${MODEL} · ${EMB_MODEL} · ${TTS_MODEL}</div></div>
+    <div class="field"><label>Clave de Tavily</label><input type="password" id="kTV" value="${esc(keyTV())}" placeholder="tvly-…">
+      <div class="hint">Necesaria para leer enlaces y descubrir fuentes en la web.</div></div>
+    <div class="actions"><button class="pill" id="wipe">Borrar todo</button><span class="spacer" style="flex:1"></span>
+      <button class="pill" data-close>Cerrar</button><button class="pill primary" id="kGo">Guardar</button></div>`);
+  s.querySelector('[data-close]').onclick = closeLayers;
+  s.querySelector('#kGo').onclick = () => {
+    localStorage.setItem(K_KEY, s.querySelector('#kOA').value.trim());
+    localStorage.setItem(T_KEY, s.querySelector('#kTV').value.trim());
+    closeLayers(); checkKeys(); toast('Claves guardadas.');
+  };
+  s.querySelector('#wipe').onclick = async () => {
+    if (!confirm('Se eliminarán todos los cuadernos de este navegador. ¿Seguro?')) return;
+    for (const n of await dbAll()) await dbDel(n.id);
+    closeLayers(); renderHome(); toast('Todo borrado.');
+  };
+}
+function checkKeys(){ $('#keyWarn').classList.toggle('hidden', !!keyOA()); }
+
+/* ------------------------------ exportar ----------------------------- */
+function exportNotebook(){
+  const nb = S.nb;
+  let t = `# ${nb.name}\n\n${nb.desc || ''}\n\n## Fuentes\n\n`;
+  nb.sources.forEach((s,i) => t += `${i+1}. **${s.title}**${s.url ? ' — ' + s.url : ''}\n`);
+  t += `\n## Notas\n\n`;
+  nb.notes.forEach(n => t += `### ${n.title}\n\n${n.body}\n\n`);
+  t += `\n## Chat\n\n`;
+  nb.chat.forEach(m => t += `**${m.role === 'user' ? 'Pregunta' : 'LibretIA'}:** ${m.content}\n\n`);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([t], {type:'text/markdown'}));
+  a.download = nb.name.replace(/[^\w\sáéíóúñ-]/gi,'').slice(0,60) + '.md';
+  a.click();
+}
+
+/* ------------------------------ eventos ------------------------------ */
+$('#goHome').onclick = renderHome;
+$('#btnSettings').onclick = settingsDialog;
+$('#btnSearch').onclick = searchDialog;
+$('#btnStudioToggle').onclick = () => $('#panelStudio').classList.toggle('show');
+$('#btnAddSource').onclick = addSourceDialog;
+$('#btnDiscover').onclick = discoverDialog;
+$('#btnExportNb').onclick = exportNotebook;
+$('#btnPodcast').onclick = makePodcast;
+
+$('#nbGrid').addEventListener('click', async e => {
+  if (e.target.id === 'newNb' || e.target.closest('#newNb')) return newNotebook();
+  const del = e.target.closest('[data-del]');
+  if (del){ e.stopPropagation();
+    if (confirm('¿Eliminar este cuaderno?')) { await dbDel(del.dataset.del); renderHome(); }
+    return; }
+  const card = e.target.closest('[data-open]');
+  if (card) openNb(S.list.find(n => n.id === card.dataset.open));
+});
+$('#nbGrid').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('[data-open]');
+  if (card){ e.preventDefault(); openNb(S.list.find(n => n.id === card.dataset.open)); }
+});
+
+$('#srcList').addEventListener('click', e => {
+  const k = e.target.closest('[data-kill]');
+  if (k){
+    S.nb.sources = S.nb.sources.filter(s => s.id !== k.dataset.kill);
+    renderSources(); save(); return;
+  }
+});
+$('#srcList').addEventListener('change', e => {
+  const c = e.target.closest('[data-check]');
+  if (!c) return;
+  const s = S.nb.sources.find(x => x.id === c.dataset.check);
+  s.on = c.checked; renderSources(); save();
+});
+$('#selAll').onchange = e => { S.nb.sources.forEach(s => s.on = e.target.checked); renderSources(); save(); };
+
+$('#tiles').addEventListener('click', e => {
+  const b = e.target.closest('[data-t]');
+  if (b) runTransform(TRANSFORMS.find(t => t.id === b.dataset.t));
+});
+$('#btnNewNote').onclick = () => {
+  const s = modal(`<h2>Nueva nota</h2>
+    <div class="field"><label>Título</label><input type="text" id="ntT" placeholder="Idea suelta"></div>
+    <div class="field"><label>Contenido</label><textarea id="ntB" rows="9"></textarea></div>
+    <div class="actions"><button class="pill" data-close>Cancelar</button><button class="pill primary" id="ntGo">Guardar</button></div>`);
+  s.querySelector('[data-close]').onclick = closeLayers;
+  s.querySelector('#ntGo').onclick = () => {
+    S.nb.notes.unshift({id:uid(), title: s.querySelector('#ntT').value.trim() || 'Nota', body: s.querySelector('#ntB').value, kind:'human', ts:Date.now()});
+    closeLayers(); renderNotes(); save();
+  };
+};
+$('#noteList').addEventListener('click', e => {
+  const b = e.target.closest('[data-note-open]');
+  if (!b) return;
+  const n = S.nb.notes.find(x => x.id === b.dataset.noteOpen);
+  const d = drawer(n.title, `<div class="md">${citeChips(md(n.body))}</div>`);
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;gap:6px;padding:12px 18px;border-top:1px solid var(--line)';
+  bar.innerHTML = `<button class="tinybtn" id="nCopy">Copiar</button><button class="tinybtn" id="nDel">Eliminar</button>`;
+  d.appendChild(bar);
+  bar.querySelector('#nCopy').onclick = () => { navigator.clipboard.writeText(n.body); toast('Copiado.'); };
+  bar.querySelector('#nDel').onclick = () => { S.nb.notes = S.nb.notes.filter(x => x.id !== n.id); closeLayers(); renderNotes(); save(); };
+});
+
+$('#chatWrap').addEventListener('click', e => {
+  const c = e.target.closest('[data-cite]');
+  if (c){
+    const msg = c.closest('.msg'); const m = S.nb.chat[+msg.dataset.i];
+    const cit = m.cites?.find(x => x.n === +c.dataset.cite);
+    if (cit) drawer(cit.title, `${cit.url ? `<p><a href="${esc(cit.url)}" target="_blank" rel="noopener">${esc(cit.url)}</a></p>` : ''}<div class="passage">${esc(cit.text)}</div>`);
+    return;
+  }
+  const n = e.target.closest('[data-note]');
+  if (n){
+    const m = S.nb.chat[+n.dataset.note];
+    const q = S.nb.chat[+n.dataset.note - 1];
+    S.nb.notes.unshift({id:uid(), title:(q?.content || 'Respuesta').slice(0,44), body:m.content, kind:'ai', ts:Date.now()});
+    renderNotes(); save(); toast('Guardado en notas.');
+    return;
+  }
+  const cp = e.target.closest('[data-copy]');
+  if (cp){ navigator.clipboard.writeText(S.nb.chat[+cp.dataset.copy].content); toast('Copiado.'); }
+});
+$('#suggests').addEventListener('click', e => {
+  const b = e.target.closest('[data-q]');
+  if (b){ $('#composer').value = b.dataset.q; send(); }
+});
+$('#btnClearChat').onclick = () => { if (confirm('¿Vaciar la conversación?')) { S.nb.chat = []; renderChat(); save(); } };
+
+const comp = $('#composer');
+comp.addEventListener('input', () => { comp.style.height = 'auto'; comp.style.height = Math.min(comp.scrollHeight, 140) + 'px'; });
+comp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+$('#btnSend').onclick = () => send();
+function send(){
+  const q = comp.value.trim();
+  if (!q) return;
+  comp.value = ''; comp.style.height = 'auto';
+  ask(q);
+}
+$('#mobileTabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-p]');
+  if (!b) return;
+  S.panel = b.dataset.p;
+  $$('.mobiletabs button').forEach(x => x.classList.toggle('on', x === b));
+  $$('.panel').forEach(p => p.classList.toggle('active', p.id.toLowerCase().includes(S.panel)));
+  $('#panelStudio').classList.toggle('show', S.panel === 'studio');
+});
+
+/* ------------------------------- arranque ---------------------------- */
+checkKeys();
+renderHome().then(() => { if (!keyOA()) settingsDialog(); });
+</script>
+</body>
+</html>
