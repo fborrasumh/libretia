@@ -18,7 +18,8 @@ Reproduce de forma navegable el comportamiento del skill
   recuperados y marca `[1]`, `[2]`; cada marcador abre el pasaje literal y su URL.
 - **Estudio**: resumen ejecutivo, guía de estudio, FAQ, cronología, documento
   informativo, mapa conceptual, métodos e instrucciones propias.
-- **Resumen en audio**: guion a dos voces sintetizado con `tts-1` y exportable a WAV.
+- **Resumen en audio**: guion a dos voces locutado con las voces del propio navegador
+  (`speechSynthesis`, sin coste) o con `tts-1` de OpenAI si se quiere un WAV descargable.
 - **Exportación** del cuaderno completo a Markdown.
 
 ## Uso
