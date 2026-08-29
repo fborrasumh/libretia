@@ -128,6 +128,10 @@ input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
 .audiocard h4{margin:0 0 3px;font-size:14px}
 .audiocard p{margin:0 0 10px;color:var(--muted);font-size:12.5px}
 .audiocard audio{width:100%;margin-top:10px}
+.audiocard select{width:100%;border:1px solid var(--line);border-radius:9px;padding:7px 9px;background:#fff;margin-bottom:7px;font-size:12.5px}
+.voicepick{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.turnline{margin-top:10px;font-size:12.5px;color:var(--muted);min-height:34px;border-left:3px solid var(--accent);padding-left:9px}
+.turnline b{color:var(--ink)}
 .note{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin:0 4px 8px;text-align:left;width:calc(100% - 8px);display:block}
 .note:hover{background:var(--hover)}
 .note h5{margin:0 0 3px;font-size:13px;font-weight:600;display:flex;gap:6px;align-items:center}
@@ -247,6 +251,14 @@ input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
       <div class="audiocard">
         <h4>Resumen en audio</h4>
         <p>Dos voces conversan sobre tus fuentes seleccionadas.</p>
+        <select id="ttsEngine">
+          <option value="browser">Voces del navegador · sin coste</option>
+          <option value="openai">Voces de OpenAI · descargable en WAV</option>
+        </select>
+        <div class="voicepick" id="voicePick">
+          <select id="voiceA" title="Voz de la anfitriona"></select>
+          <select id="voiceB" title="Voz del experto"></select>
+        </div>
         <button class="pill primary" id="btnPodcast">Generar</button>
         <div id="podcastBox"></div>
       </div>
@@ -640,10 +652,85 @@ function renderTiles(){
     `<button class="tile" data-t="${t.id}"><span class="t-ico">${t.ico}</span>${t.name}</button>`).join('');
 }
 
+/* --------------------------- voces del navegador --------------------- */
+const VOICE_A = 'ia_voice_a', VOICE_B = 'ia_voice_b';
+let VOICES = [], player = null;
+function loadVoices(){
+  VOICES = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  const es = VOICES.filter(v => /^es/i.test(v.lang));
+  const pool = es.length ? es : VOICES;
+  const fill = (sel, storeKey, fallback) => {
+    const el = $(sel); if (!el) return;
+    if (!pool.length){ el.innerHTML = '<option>Sin voces instaladas</option>'; el.disabled = true; return; }
+    el.disabled = false;
+    const saved = localStorage.getItem(storeKey);
+    el.innerHTML = pool.map(v => `<option value="${esc(v.name)}">${esc(v.name.replace(/^(Google|Microsoft)\s+/,''))} · ${esc(v.lang)}</option>`).join('');
+    el.value = (saved && pool.some(v => v.name === saved)) ? saved : (pool[Math.min(fallback, pool.length-1)] || pool[0]).name;
+    el.onchange = () => localStorage.setItem(storeKey, el.value);
+    localStorage.setItem(storeKey, el.value);
+  };
+  fill('#voiceA', VOICE_A, 0);
+  fill('#voiceB', VOICE_B, 1);
+}
+if (window.speechSynthesis){ speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+const voiceFor = sp => VOICES.find(v => v.name === localStorage.getItem(sp === 'A' ? VOICE_A : VOICE_B)) || null;
+
+function sentences(text){
+  const out = [];
+  text.split(/(?<=[.!?…])\s+/).forEach(p => {
+    if (p.length <= 220) { if (p.trim()) out.push(p.trim()); return; }
+    p.split(/(?<=,)\s+/).forEach(q => {
+      q = q.trim(); if (!q) return;
+      while (q.length > 300){                       // último recorte por palabras
+        let cut = q.lastIndexOf(' ', 300); if (cut < 100) cut = 300;
+        out.push(q.slice(0, cut).trim()); q = q.slice(cut).trim();
+      }
+      if (q) out.push(q);
+    });
+  });
+  return out.length ? out : [text];
+}
+function speak(turns, {onTurn, onEnd}){
+  speechSynthesis.cancel();
+  const items = [];
+  turns.forEach((t, ti) => sentences(t.text).forEach(x => items.push({text:x, sp:t.speaker, ti})));
+  let i = 0, stopped = false;
+  // Chrome corta las locuciones largas: un pause/resume periódico lo evita.
+  const keep = setInterval(() => { if (speechSynthesis.speaking && !speechSynthesis.paused){ speechSynthesis.pause(); speechSynthesis.resume(); } }, 9000);
+  const finish = () => { clearInterval(keep); onEnd(); };
+  const next = () => {
+    if (stopped) return;
+    if (i >= items.length) return finish();
+    const it = items[i++];
+    const u = new SpeechSynthesisUtterance(it.text);
+    const v = voiceFor(it.sp);
+    if (v) u.voice = v;
+    u.lang = v ? v.lang : 'es-ES';
+    u.rate = 1.03;
+    u.pitch = it.sp === 'A' ? 1.06 : 0.92;   // distingue las dos voces aunque sean la misma
+    u.onend = next;
+    u.onerror = e => { if (e.error !== 'interrupted') next(); };
+    onTurn(it.ti);
+    speechSynthesis.speak(u);
+  };
+  next();
+  return {
+    stop(){ stopped = true; clearInterval(keep); speechSynthesis.cancel(); },
+    pause(){ speechSynthesis.pause(); },
+    resume(){ speechSynthesis.resume(); }
+  };
+}
+function stopSpeech(){ if (player){ player.stop(); player = null; } else if (window.speechSynthesis) speechSynthesis.cancel(); }
+
 /* --------------------------- audio (podcast) ------------------------- */
 async function makePodcast(){
   const body = corpus(28000);
   if (!body) { toast('Selecciona al menos una fuente.'); return; }
+  const engine = $('#ttsEngine').value;
+  if (engine === 'browser' && (!window.speechSynthesis || !VOICES.length)){
+    toast('Tu navegador no expone voces. Usa Chrome o cambia a las voces de OpenAI.'); return;
+  }
+  stopSpeech();
   const box = $('#podcastBox');
   box.innerHTML = `<div class="progress"><i></i></div><p style="font-size:12px;color:var(--muted);margin:6px 0 0" id="podStat">Escribiendo el guion…</p>`;
   const stat = m => { const e = $('#podStat'); if (e) e.textContent = m; };
@@ -653,6 +740,10 @@ async function makePodcast(){
       {role:'user', content:`Crea un resumen en audio de este material:\n\n${body}`}
     ], {json:true, temperature:0.6, max_tokens:2600});
     const script = JSON.parse(raw);
+    if (engine === 'browser'){
+      S.nb.audio = {title: script.title || 'Resumen en audio', script: script.turns, engine:'browser', ts: Date.now()};
+      save(); renderPodcast(); return;
+    }
     stat(`Sintetizando ${script.turns.length} intervenciones…`);
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const bufs = [];
@@ -686,15 +777,36 @@ function wav(buffers, rate){
 function renderPodcast(){
   const box = $('#podcastBox'), a = S.nb.audio;
   if (!a){ box.innerHTML = ''; return; }
-  const url = URL.createObjectURL(a.blob);
-  box.innerHTML = `<audio controls src="${url}"></audio>
-    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-      <a class="tinybtn" href="${url}" download="${esc(a.title).replace(/[^\w\s-]/g,'')}.wav" style="text-decoration:none">Descargar</a>
-      <button class="tinybtn" id="btnScript">Ver guion</button>
-      <button class="tinybtn" id="btnDropAudio">Borrar</button>
-    </div>`;
-  $('#btnScript').onclick = () => drawer(a.title, `<div class="md">${a.script.map(t => `<p><strong>${t.speaker==='A'?'Anfitriona':'Experto'}:</strong> ${esc(t.text)}</p>`).join('')}</div>`);
-  $('#btnDropAudio').onclick = () => { S.nb.audio = null; save(); renderPodcast(); };
+  const tools = `<button class="tinybtn" id="btnScript">Ver guion</button><button class="tinybtn" id="btnDropAudio">Borrar</button>`;
+  if (a.engine === 'browser' || !a.blob){
+    box.innerHTML = `<p style="margin:10px 0 0;font-size:13px"><strong>${esc(a.title)}</strong></p>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <button class="tinybtn" id="btnPlay">▶ Reproducir</button>
+        <button class="tinybtn" id="btnStop">■ Detener</button>${tools}
+      </div>
+      <div class="turnline" id="turnLine">${a.script.length} intervenciones · voces de tu navegador</div>`;
+    const line = $('#turnLine'), play = $('#btnPlay');
+    const reset = () => { player = null; play.textContent = '▶ Reproducir'; line.textContent = `${a.script.length} intervenciones · voces de tu navegador`; };
+    play.onclick = () => {
+      if (!player){
+        play.textContent = '⏸ Pausar';
+        player = speak(a.script, {
+          onTurn: i => { const t = a.script[i]; line.innerHTML = `<b>${t.speaker === 'A' ? 'Anfitriona' : 'Experto'}:</b> ${esc(t.text)}`; },
+          onEnd: reset
+        });
+      } else if (speechSynthesis.paused){ player.resume(); play.textContent = '⏸ Pausar'; }
+      else { player.pause(); play.textContent = '▶ Continuar'; }
+    };
+    $('#btnStop').onclick = () => { stopSpeech(); reset(); };
+  } else {
+    const url = URL.createObjectURL(a.blob);
+    box.innerHTML = `<audio controls src="${url}"></audio>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <a class="tinybtn" href="${url}" download="${esc(a.title).replace(/[^\w\s-]/g,'')}.wav" style="text-decoration:none">Descargar</a>${tools}
+      </div>`;
+  }
+  $('#btnScript').onclick = () => drawer(a.title, `<div class="md">${a.script.map(t => `<p><strong>${t.speaker === 'A' ? 'Anfitriona' : 'Experto'}:</strong> ${esc(t.text)}</p>`).join('')}</div>`);
+  $('#btnDropAudio').onclick = () => { stopSpeech(); S.nb.audio = null; save(); renderPodcast(); };
 }
 
 /* ------------------------------ UI: drawer/modal --------------------- */
@@ -721,6 +833,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLayers(
 
 /* ------------------------------ pantallas ---------------------------- */
 async function renderHome(){
+  stopSpeech();
   S.list = await dbAll();
   S.nb = null;
   $('#home').classList.remove('hidden'); $('#workspace').classList.add('hidden');
@@ -935,6 +1048,12 @@ $('#btnAddSource').onclick = addSourceDialog;
 $('#btnDiscover').onclick = discoverDialog;
 $('#btnExportNb').onclick = exportNotebook;
 $('#btnPodcast').onclick = makePodcast;
+$('#ttsEngine').onchange = e => {
+  $('#voicePick').classList.toggle('hidden', e.target.value !== 'browser');
+  localStorage.setItem('ia_tts_engine', e.target.value);
+};
+$('#ttsEngine').value = localStorage.getItem('ia_tts_engine') || 'browser';
+$('#voicePick').classList.toggle('hidden', $('#ttsEngine').value !== 'browser');
 
 $('#nbGrid').addEventListener('click', async e => {
   if (e.target.id === 'newNb' || e.target.closest('#newNb')) return newNotebook();
