@@ -14,7 +14,7 @@ Reproduce de forma navegable el comportamiento del skill
   descubrimiento web (Tavily Search) con selección previa de resultados.
 - **Búsqueda vectorial**: troceado e indexado con `text-embedding-3-small` y
   recuperación por similitud coseno reforzada léxicamente.
-- **Chat con citas verificables**: `gpt-4o-mini` responde solo sobre los extractos
+- **Chat con citas verificables**: `gpt-6-luna` responde solo sobre los extractos
   recuperados y marca `[1]`, `[2]`; cada marcador abre el pasaje literal y su URL.
 - **Estudio**: resumen ejecutivo, guía de estudio, FAQ, cronología, documento
   informativo, mapa conceptual, métodos e instrucciones propias.
